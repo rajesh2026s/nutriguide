@@ -38,17 +38,6 @@ DISCLAIMER = (
     "or physician for guidance specific to your health needs."
 )
 
-EXAMPLES = [
-    ["How much saturated fat should I eat daily?", ""],
-    ["What are good protein sources for a vegetarian diet?", "vegetarian"],
-    ["What is the recommended daily sodium intake?", ""],
-    ["How many calories should an adult eat per day?", ""],
-    ["What foods should I limit on a low-sodium diet?", "low-sodium"],
-    ["What's a healthy plate look like for dinner?", ""],
-    ["How much added sugar is recommended per day?", ""],
-    ["What are good sources of fiber?", "vegetarian"],
-]
-
 
 def chat_fn(message, history, constraints):
     return answer_query(message, constraints)
@@ -72,13 +61,20 @@ with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Soft(primary_hue="green")) as dem
     gr.ChatInterface(
         fn=chat_fn,
         additional_inputs=[constraints_box],
-        examples=EXAMPLES,
         type="messages",
         chatbot=gr.Chatbot(
             height=480,
             avatar_images=(None, "🥗"),
             type="messages",
         ),
+    )
+
+    gr.Markdown(
+        "**Try asking:** How much saturated fat should I eat daily? • "
+        "What are good protein sources for a vegetarian diet? • "
+        "What is the recommended daily sodium intake? • "
+        "How many calories should an adult eat per day? • "
+        "What foods should I limit on a low-sodium diet?"
     )
 
     gr.Markdown(
