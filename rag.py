@@ -79,3 +79,27 @@ def answer_query(user_message: str, constraints: str = "") -> str:
     pages = sorted(set(p["page_number"] for p in passages))
     page_list = ", ".join(str(p) for p in pages)
     return f"{response}\n\n*Source: USDA Dietary Guidelines for Americans, page(s) {page_list}*"
+
+RELEVANCE_THRESHOLD = 0.35  # tune after testing — start conservative
+
+OUT_OF_SCOPE_MESSAGE = (
+    "I don't have reliable information on that topic in the USDA Dietary "
+    "Guidelines, so I can't give a grounded answer. I can help with questions "
+    "about nutrition, meal planning, and dietary guidance instead."
+)
+
+
+def answer_query(user_message: str, constraints: str = "") -> str:
+    passages = retrieve(user_message)
+    top_score = passages[0]["score"] if passages else 0.0
+
+    if top_score < RELEVANCE_THRESHOLD:
+        return OUT_OF_SCOPE_MESSAGE
+
+    prompt = build_prompt(user_message, constraints, passages)
+    output = generator(prompt, do_sample=False)[0]["generated_text"]
+    response = output[len(prompt):].strip()
+
+    pages = sorted(set(p["page_number"] for p in passages))
+    page_list = ", ".join(str(p) for p in pages)
+    return f"{response}\n\n*Source: USDA Dietary Guidelines for Americans, page(s) {page_list}*"
