@@ -24,7 +24,8 @@ print("Loading generation model (this can take a minute on first run)...")
 generator = pipeline(
     "text-generation",
     model="Qwen/Qwen2.5-1.5B-Instruct",
-    max_new_tokens=300,
+    max_new_tokens=200,     # trimmed slightly too
+    device=0,               # 0 = first GPU (the T4)
 )
 
 
