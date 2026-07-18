@@ -64,7 +64,7 @@ with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Soft(primary_hue="green")) as dem
         type="messages",
         chatbot=gr.Chatbot(
             height=480,
-            avatar_images=(None, "🥗"),
+            avatar_images=(None, "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f957.png"),
             type="messages",
         ),
     )
