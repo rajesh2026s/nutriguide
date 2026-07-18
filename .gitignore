@@ -13,3 +13,6 @@ build/
 # gradio
 flagged/
 .gradio/
+
+# claude
+.claude
