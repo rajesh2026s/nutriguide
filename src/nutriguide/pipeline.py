@@ -12,9 +12,11 @@ from nutriguide.constraints import (
 )
 from nutriguide.guardrails import (
     CLINICAL_MESSAGE,
+    GREETING_MESSAGE,
     OUT_OF_SCOPE_MESSAGE,
     PERSONAL_DISCLAIMER,
     classify_question,
+    is_greeting,
 )
 from nutriguide.retriever import Passage
 
@@ -79,6 +81,9 @@ class RagPipeline:
         question = (question or "").strip()
         if not question:
             return "Please ask a nutrition question."
+
+        if is_greeting(question):
+            return GREETING_MESSAGE
 
         scope = classify_question(question)
         if scope == "clinical":

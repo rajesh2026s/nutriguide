@@ -1,5 +1,10 @@
 from nutriguide.config import Config
-from nutriguide.guardrails import CLINICAL_MESSAGE, OUT_OF_SCOPE_MESSAGE, PERSONAL_DISCLAIMER
+from nutriguide.guardrails import (
+    CLINICAL_MESSAGE,
+    GREETING_MESSAGE,
+    OUT_OF_SCOPE_MESSAGE,
+    PERSONAL_DISCLAIMER,
+)
 from nutriguide.pipeline import CONDENSE_PROMPT, RagPipeline
 from nutriguide.retriever import Passage
 
@@ -134,3 +139,11 @@ def test_constraint_mentioned_in_question_is_enforced():
     assert len(generator.calls) == 2  # violation in first draft forced a retry
     assert "Beans are vegetarian-friendly." in answer
     assert "Compliance check" not in answer
+
+
+def test_greeting_returns_intro_without_retrieval():
+    pipeline, retriever, generator = make_pipeline([])
+    assert pipeline.answer("Hi") == GREETING_MESSAGE
+    assert pipeline.answer("hello!") == GREETING_MESSAGE
+    assert retriever.queries == []
+    assert generator.calls == []
