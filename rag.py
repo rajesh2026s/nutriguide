@@ -103,3 +103,79 @@ def answer_query(user_message: str, constraints: str = "") -> str:
     pages = sorted(set(p["page_number"] for p in passages))
     page_list = ", ".join(str(p) for p in pages)
     return f"{response}\n\n*Source: USDA Dietary Guidelines for Americans, page(s) {page_list}*"
+
+def format_history(history, max_turns=3, max_chars=300):
+    """Turn Gradio's messages-format history into a short text block."""
+    if not history:
+        return ""
+    trimmed = history[-(max_turns * 2):]  # keep last N user/assistant pairs
+    lines = []
+    for turn in trimmed:
+        role = "User" if turn["role"] == "user" else "NutriGuide"
+        content = turn["content"]
+        if len(content) > max_chars:
+            content = content[:max_chars] + "..."
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
+
+def build_retrieval_query(user_message, history, max_prior_turns=1):
+    """Fold the last user turn(s) into the retrieval query so follow-ups
+    like 'what about for kids?' still hit the right passages."""
+    if not history:
+        return user_message
+    prior_user_msgs = [h["content"] for h in history if h["role"] == "user"]
+    prior_user_msgs = prior_user_msgs[-max_prior_turns:]
+    return " ".join(prior_user_msgs + [user_message])
+
+
+def build_prompt(user_message: str, constraints: str, passages: list, history_block: str = "") -> str:
+    context = "\n\n".join(
+        f"[Page {p['page_number']}] {p['text']}" for p in passages
+    )
+
+    if constraints:
+        constraint_block = f"""
+STRICT DIETARY CONSTRAINT: {constraints}
+You MUST only recommend foods that comply with this constraint. Do not mention
+or recommend any food that violates it, even if it appears in the context below.
+If the context only offers non-compliant examples, say so explicitly and suggest
+the user consult a dietitian for compliant alternatives, rather than listing
+non-compliant foods.
+"""
+    else:
+        constraint_block = ""
+
+    history_section = f"\nRecent conversation:\n{history_block}\n" if history_block else ""
+
+    return f"""You are NutriGuide, a dietary assistant grounded in the USDA Dietary
+Guidelines for Americans. Answer ONLY using the context below. Do not diagnose. Do not
+recommend medication or dosages. Use the recent conversation only to resolve what the
+user is referring to (e.g. pronouns, "what about..."); do not answer questions that
+aren't grounded in the context below.
+{constraint_block}{history_section}
+Context:
+{context}
+
+Question: {user_message}
+
+Answer (remember to strictly respect the dietary constraint above, if any):"""
+
+
+def answer_query(user_message: str, constraints: str = "", history: list = None) -> str:
+    history = history or []
+    retrieval_query = build_retrieval_query(user_message, history)
+    passages = retrieve(retrieval_query)
+    top_score = passages[0]["score"] if passages else 0.0
+
+    if top_score < RELEVANCE_THRESHOLD:
+        return OUT_OF_SCOPE_MESSAGE
+
+    history_block = format_history(history)
+    prompt = build_prompt(user_message, constraints, passages, history_block)
+    output = generator(prompt, do_sample=False)[0]["generated_text"]
+    response = output[len(prompt):].strip()
+
+    pages = sorted(set(p["page_number"] for p in passages))
+    page_list = ", ".join(str(p) for p in pages)
+    return f"{response}\n\n*Source: USDA Dietary Guidelines for Americans, page(s) {page_list}*"

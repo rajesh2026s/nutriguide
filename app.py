@@ -40,7 +40,7 @@ DISCLAIMER = (
 
 
 def chat_fn(message, history, constraints):
-    return answer_query(message, constraints)
+    return answer_query(message, constraints, history)
 
 
 with gr.Blocks(css=CUSTOM_CSS, theme=gr.themes.Soft(primary_hue="green")) as demo:
