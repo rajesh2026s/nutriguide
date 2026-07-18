@@ -44,20 +44,29 @@ def build_prompt(user_message: str, constraints: str, passages: list) -> str:
     context = "\n\n".join(
         f"[Page {p['page_number']}] {p['text']}" for p in passages
     )
-    constraint_line = f"User's stated dietary constraints: {constraints}\n" if constraints else ""
+
+    if constraints:
+        constraint_block = f"""
+STRICT DIETARY CONSTRAINT: {constraints}
+You MUST only recommend foods that comply with this constraint. Do not mention
+or recommend any food that violates it, even if it appears in the context below.
+If the context only offers non-compliant examples, say so explicitly and suggest
+the user consult a dietitian for compliant alternatives, rather than listing
+non-compliant foods.
+"""
+    else:
+        constraint_block = ""
 
     return f"""You are NutriGuide, a dietary assistant grounded in the USDA Dietary
-Guidelines for Americans. Answer ONLY using the context below. If the context
-does not fully answer the question, say what you can and note the limitation.
-Do not provide medical advice or diagnoses.
-
-{constraint_line}
+Guidelines for Americans. Answer ONLY using the context below. Do not diagnose. Do not
+recommend medication or dosages.
+{constraint_block}
 Context:
 {context}
 
 Question: {user_message}
 
-Answer:"""
+Answer (remember to strictly respect the dietary constraint above, if any):"""
 
 
 def answer_query(user_message: str, constraints: str = "") -> str:
