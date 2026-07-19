@@ -1,5 +1,10 @@
 from nutriguide.config import Config
-from nutriguide.guardrails import CLINICAL_MESSAGE, OUT_OF_SCOPE_MESSAGE, PERSONAL_DISCLAIMER
+from nutriguide.guardrails import (
+    CLINICAL_MESSAGE,
+    GREETING_MESSAGE,
+    OUT_OF_SCOPE_MESSAGE,
+    PERSONAL_DISCLAIMER,
+)
 from nutriguide.pipeline import CONDENSE_PROMPT, RagPipeline
 from nutriguide.retriever import Passage
 
@@ -79,6 +84,8 @@ def test_history_triggers_query_condensation():
     assert retriever.queries == [rewritten]
     # history is part of the final generation messages
     assert any(m["content"] == "Beans, lentils, poultry, and fish." for m in generator.calls[1])
+    # the condensed standalone question (not the raw follow-up) is what gets answered
+    assert rewritten in generator.calls[1][-1]["content"]
     assert "Beans and lentils." in answer
 
 
@@ -104,4 +111,39 @@ def test_persistent_violation_is_flagged():
 def test_empty_question():
     pipeline, _, generator = make_pipeline([])
     assert "ask a nutrition question" in pipeline.answer("  ").lower()
+    assert generator.calls == []
+
+
+def test_invalid_condensation_falls_back_to_stitched_query():
+    history = [
+        {"role": "user", "content": "What are good protein sources?"},
+        {"role": "assistant", "content": "Beans and fish."},
+    ]
+    # the condense model answers instead of rewriting (multiline, no "?")
+    pipeline, retriever, generator = make_pipeline(
+        ["For children, eat:\n- Meat\n- Eggs", "Answer for kids."]
+    )
+    answer = pipeline.answer("What about for children?", history=history)
+    # retrieval falls back to prior user turn + follow-up
+    assert retriever.queries == ["What are good protein sources? What about for children?"]
+    # generation still asks the raw follow-up (history resolves it)
+    assert "What about for children?" in generator.calls[1][-1]["content"]
+    assert "Answer for kids." in answer
+
+
+def test_constraint_mentioned_in_question_is_enforced():
+    pipeline, _, generator = make_pipeline(
+        ["Chicken and beans are vegetarian-friendly.", "Beans are vegetarian-friendly."]
+    )
+    answer = pipeline.answer("Which foods are vegetarian-friendly?")
+    assert len(generator.calls) == 2  # violation in first draft forced a retry
+    assert "Beans are vegetarian-friendly." in answer
+    assert "Compliance check" not in answer
+
+
+def test_greeting_returns_intro_without_retrieval():
+    pipeline, retriever, generator = make_pipeline([])
+    assert pipeline.answer("Hi") == GREETING_MESSAGE
+    assert pipeline.answer("hello!") == GREETING_MESSAGE
+    assert retriever.queries == []
     assert generator.calls == []

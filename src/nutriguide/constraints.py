@@ -66,6 +66,10 @@ _NEGATION_CUES = (
     "-free", "free of", "cut back", "reduce", "reducing", "allerg",
 )
 
+# ...but a recommendation verb closer to the food re-activates the violation:
+# "avoid meat, recommending instead lean poultry" still recommends poultry.
+_RECOMMEND_CUES = ("recommend", "choose", "opt for", "enjoy", "prefer", "try")
+
 
 def parse_constraints(raw: str) -> list[str]:
     """Extract known constraint names from free-text user input.
@@ -82,12 +86,34 @@ def parse_constraints(raw: str) -> list[str]:
     return known
 
 
+_MENTION_PATTERNS = {
+    "vegetarian": r"\bvegetarian\w*\b",
+    "vegan": r"\bvegan\w*\b|\bplant[- ]based\b",
+    "gluten-free": r"\bgluten[- ]free\b|\bavoid\w* gluten\b|\bwithout gluten\b|\bceliac\b",
+    "dairy-free": r"\bdairy[- ]free\b|\blactose\b",
+    "nut-free": r"\bnut[- ]free\b|\bnut allerg\w*\b|\bpeanut allerg\w*\b",
+    "low-sodium": r"\blow[- ]sodium\b|\blow[- ]salt\b",
+}
+
+
+def find_mentioned_constraints(text: str) -> list[str]:
+    """Known constraints referenced in free text, e.g. a question asking
+    "which of those are vegetarian-friendly?" implies the vegetarian lexicon."""
+    return [
+        name
+        for name, pattern in _MENTION_PATTERNS.items()
+        if re.search(pattern, text, re.IGNORECASE)
+    ]
+
+
 def _is_negated(text: str, match_start: int) -> bool:
     sentence_start = max(
         text.rfind(ch, 0, match_start) for ch in ".!?\n"
     )
     window = text[max(sentence_start + 1, match_start - 90) : match_start].lower()
-    return any(cue in window for cue in _NEGATION_CUES)
+    nearest_negation = max(window.rfind(cue) for cue in _NEGATION_CUES)
+    nearest_recommend = max(window.rfind(cue) for cue in _RECOMMEND_CUES)
+    return nearest_negation != -1 and nearest_negation >= nearest_recommend
 
 
 def find_violations(text: str, constraint_names: list[str]) -> list[str]:

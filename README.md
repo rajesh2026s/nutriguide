@@ -4,9 +4,6 @@ A retrieval-augmented (RAG) nutrition chat assistant grounded in the **USDA
 Dietary Guidelines for Americans, 2020–2025**. Ask a nutrition question, get a
 concise answer with page-level citations back to the source document.
 
-> ⚠️ Educational prototype. NutriGuide provides general dietary information
-> only — not personalized medical or nutritional advice.
-
 ## How it works
 
 ```
