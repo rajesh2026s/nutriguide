@@ -7,6 +7,7 @@ import logging
 import gradio as gr
 
 from nutriguide.pipeline import RagPipeline
+from nutriguide.adaptation import compute_detail_level
 
 CUSTOM_CSS = """
 .gradio-container { max-width: 900px !important; margin: 0 auto !important; }
@@ -54,7 +55,9 @@ EXAMPLES = [
 
 def build_demo(pipeline: RagPipeline) -> gr.Blocks:
     def chat_fn(message, history, constraints):
-        return pipeline.answer(message, history=history, constraints=constraints or "")
+        response = pipeline.answer(message, history=history, constraints=constraints or "")
+        level = compute_detail_level(history or [], message)
+        return response, f"Response style: **{level.value.capitalize()}**"
 
     theme = gr.themes.Soft(primary_hue="emerald", neutral_hue="slate")
     with gr.Blocks(css=CUSTOM_CSS, theme=theme, title="NutriGuide") as demo:
@@ -70,9 +73,12 @@ def build_demo(pipeline: RagPipeline) -> gr.Blocks:
             placeholder="e.g., vegetarian, gluten-free, low-sodium",
         )
 
+        style_label = gr.Markdown("Response style: **Standard**", elem_id="style-indicator")
+
         gr.ChatInterface(
             fn=chat_fn,
             additional_inputs=[constraints_box],
+            additional_outputs=[style_label],
             examples=EXAMPLES,
             type="messages",
             chatbot=gr.Chatbot(height=480, type="messages", label="NutriGuide"),

@@ -19,6 +19,7 @@ from nutriguide.guardrails import (
     is_greeting,
 )
 from nutriguide.retriever import Passage
+from nutriguide.adaptation import compute_detail_level, detail_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,8 @@ class RagPipeline:
         if not passages or passages[0].score < self.config.relevance_threshold:
             return OUT_OF_SCOPE_MESSAGE
 
-        messages = self._build_messages(standalone, history, passages, constraints)
+        level = compute_detail_level(history, question)
+        messages = self._build_messages(standalone, history, passages, constraints, level)
         answer = self.generator.chat(messages)
         answer = self._enforce_constraints(answer, messages, standalone, constraints)
 
@@ -145,8 +147,11 @@ class RagPipeline:
         history: list[dict[str, str]],
         passages: list[Passage],
         constraints: str,
+        detail_level=None,
     ) -> list[dict[str, str]]:
         system = SYSTEM_PROMPT
+        if detail_level is not None:
+            system += "\n\n" + detail_instruction(detail_level)
         if constraints.strip():
             system += CONSTRAINT_PROMPT.format(constraints=constraints.strip())
         context = "\n\n".join(f"[Page {p.page_number}] {p.text}" for p in passages)
